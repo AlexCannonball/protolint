@@ -132,6 +132,10 @@ func (f *BaseFixing) Finally() error {
 	if bytes.Equal(f.content, f.original) {
 		return nil
 	}
+	if file.IsStdin(f.fileName) {
+		file.SetVirtualFile(f.fileName, f.content)
+		return nil
+	}
 	return osutil.WriteExistingFile(f.fileName, f.content)
 }
 

@@ -2,6 +2,7 @@ package file
 
 import (
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"slices"
@@ -65,7 +66,16 @@ func collectAllProtoFilesFromArgs(
 			if stdinFileName != "" {
 				displayPath = stdinFileName
 			}
-			fs = append(fs, NewProtoFile(file.StdinPath, stdinFilenameClean(absCwd, displayPath)))
+
+			cleanDisplayPath := stdinFilenameClean(absCwd, displayPath)
+
+			data, err := io.ReadAll(os.Stdin)
+			if err != nil {
+				return nil, fmt.Errorf("failed to read from stdin: %v", err)
+			}
+
+			file.SetVirtualFile(cleanDisplayPath, data)
+			fs = append(fs, NewProtoFile(cleanDisplayPath, cleanDisplayPath))
 			continue
 		}
 

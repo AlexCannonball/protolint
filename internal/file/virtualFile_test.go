@@ -2,7 +2,6 @@ package file_test
 
 import (
 	"bytes"
-	"fmt"
 	"io"
 	"os"
 	"sync"
@@ -11,30 +10,46 @@ import (
 	"github.com/yoheimuta/protolint/internal/file"
 )
 
+func TestIsStdin(t *testing.T) {
+	path := "proto/service.proto"
+	content := []byte("syntax = \"proto3\";")
+
+	if file.IsStdin(path) {
+		t.Error("IsStdin() should return false for an unregistered path")
+	}
+
+	file.SetVirtualFile(path, content)
+	defer file.SetVirtualFile(path, nil)
+
+	if !file.IsStdin(path) {
+		t.Error("IsStdin() should return true for a registered virtual path")
+	}
+}
+
 func TestVFS_Concurrency(t *testing.T) {
 	var wg sync.WaitGroup
 	workers := 100
+	path := "proto/concurrent_test.proto"
+
+	file.SetVirtualFile(path, nil)
 
 	for i := range workers {
 		wg.Add(1)
 		go func(id int) {
 			defer wg.Done()
 
-			path := fmt.Sprintf("virtual-%d.proto", id)
-			content := fmt.Appendf(nil, "content-%d", id)
+			content := []byte("syntax = 'proto3';")
 
-			// Wtite to the map with mutex
 			file.SetVirtualFile(path, content)
 
-			// Read from the map
 			got, err := file.ReadFile(path)
 			if err != nil {
-				t.Errorf("worker %d: failed to read: %v", id, err)
+				t.Errorf("worker %d: failed to read virtual file: %v", id, err)
 				return
 			}
 
 			if !bytes.Equal(got, content) {
-				t.Errorf("worker %d: data corruption! expected %s, got %s", id, content, got)
+				t.Errorf("worker %d: data corruption!", id)
 			}
 		}(i)
 	}

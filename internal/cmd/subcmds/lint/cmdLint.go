@@ -12,6 +12,7 @@ import (
 
 	"github.com/yoheimuta/protolint/internal/linter/config"
 
+	vfs "github.com/yoheimuta/protolint/internal/file"
 	"github.com/yoheimuta/protolint/internal/linter"
 	"github.com/yoheimuta/protolint/internal/linter/file"
 	"github.com/yoheimuta/protolint/internal/osutil"
@@ -80,6 +81,22 @@ func (c *CmdLint) Run() osutil.ExitCode {
 		return osutil.ExitInternalFailure
 	}
 
+	if c.config.IsModifyingMode() {
+		for _, f := range c.protoFiles {
+			if vfs.IsStdin(f.DisplayPath()) {
+				fixedContent, err := vfs.ReadFile(f.DisplayPath())
+				if err != nil {
+					_, _ = fmt.Fprintln(c.stderr, "failed to read fixed stdin from VFS:", err)
+					return osutil.ExitInternalFailure
+				}
+
+				_, _ = c.stdout.Write(fixedContent)
+
+				return osutil.ExitSuccess
+			}
+		}
+	}
+
 	err = c.config.reporters.ReportWithFallback(c.output, failures)
 	if err != nil {
 		_, _ = fmt.Fprintln(c.stderr, err)
@@ -94,14 +111,6 @@ func (c *CmdLint) Run() osutil.ExitCode {
 }
 
 func (c *CmdLint) run() ([]report.Failure, error) {
-	if c.config.IsModifyingMode() {
-		for _, f := range c.protoFiles {
-			if f.IsStdin() {
-				return nil, fmt.Errorf("fix and auto_disable modes are not supported for stdin")
-			}
-		}
-	}
-
 	var allFailures []report.Failure
 
 	for _, f := range c.protoFiles {
@@ -137,10 +146,6 @@ func (c *CmdLint) runOneFile(
 	}
 
 	return c.l.Run(func(p *parser.Proto) (*parser.Proto, error) {
-		if !c.config.IsModifyingMode() && p != nil {
-			return p, nil
-		}
-
 		// Recreate a protoFile if the previous rule changed the filename.
 		if p != nil && p.Meta.Filename != f.DisplayPath() {
 			newFilename := p.Meta.Filename

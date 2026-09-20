@@ -175,9 +175,6 @@ flag:
 cat example.proto | protolint lint -stdin_filename=api/v1/user.proto -
 ```
 
-Note: linting from stdin support does not currently support `-fix` or
-`-auto_disable` modes, as these involve editing the physical file in-place.
-
 ## Version Control Integration
 
 protolint is available as a [pre-commit](https://pre-commit.com) hook.  Add this to your `.pre-commit-config.yaml` in your repository to run protolint with Go:
